@@ -1,3 +1,7 @@
+/*
+BUG: se spammo aggiorna pagina, alcuni 'disconnect' sembrano non essere gestiti
+*/
+
 const express = require('express')
 const http = require('http')
 const { Server } = require('socket.io')
@@ -9,6 +13,9 @@ const io = new Server(server)
 
 const internetSockets = {}
 const bossKey = "FALCONE"
+
+let isRollingDice
+let num
 
 app.use(express.static('public'))
 
@@ -40,11 +47,41 @@ server.listen(port, () => {
 
     setInterval(() => {
         console.log(Object.keys(internetSockets))
-    }, 2000);
+    }, 2000)
 })
 
 function handleInternetSocket(socket, isBoss){
-    socket.on('', ()=>{
+    socket.on('an-user-wants-to-roll-dice', ()=>{
+        if(isRollingDice){
+            return
+        }
+
+        if(!internetSockets[bossKey]){
+            for(const key in internetSockets){
+                internetSockets[key].emit('falcone-is-offline')
+            }
+
+            return
+        }
+
+        isRollingDice = true
+
+        num = Math.floor(Math.random() * 6) + 1
+        console.log(num) //il prof vedrà da subito il numero ma gli altri aspettano l animazione
+
+        internetSockets[bossKey].emit('dice-rolling-animation')
+    })
+
+    socket.on('dice-rolling-animation-is-finished', ()=>{
+        if(!internetSockets[bossKey]){
+            for(const key in internetSockets){
+                internetSockets[key].emit('falcone-is-offline')
+            }
+
+            return
+        }
+        internetSockets[bossKey].emit('dice-has-been-rolled', {num})
+        isRollingDice = false
     })
 
     socket.on('disconnect', () => {

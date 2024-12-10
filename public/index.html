@@ -4,81 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gioco dell'Oca</title>
-
-    <style>
-        body{
-            margin: 0;
-            display: flex;
-        }
-        #template{
-            display: flex;
-            background-color: brown;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-        }
-        button {
-            background-color: purple;
-            padding: 40px;
-            padding-inline: 60px;
-            max-width: 80%;
-            font-size: 2rem;
-            color: white;
-            border: 8px solid rgb(255, 255, 255);
-            border-radius: 25px;
-            cursor: pointer;
-            position: relative;
-            overflow: hidden;
-            z-index: 1;
-            transition: transform 0.2s ease, background-color 0.3s ease;
-        }
-
-        button::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(255, 255, 255, 0.3), transparent);
-            transform: translate(-50%, -50%) scale(0);
-            opacity: 0.5;
-            transition: transform 0.5s ease;
-            border-radius: 50%;
-            z-index: -1;
-        }
-
-        button:hover::before {
-            transform: translate(-50%, -50%) scale(1);
-        }
-
-        button:hover {
-            background-color: rgb(128, 0, 128); 
-            transform: scale(1.1);
-        }
-
-        button:active {
-            transform: scale(0.9);
-        }
-
-        button:hover {
-            animation: pulse 1s infinite;
-        }
-
-        @keyframes pulse {
-            0% {
-                box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4);
-            }
-            70% {
-                box-shadow: 0 0 20px 20px rgba(255, 255, 255, 0);
-            }
-            100% {
-                box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
-            }
-        }
-    </style>
-
+    <link rel="stylesheet" href="index.css">
     <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io()
+    </script>
 </head>
 
 <body>
@@ -90,24 +20,65 @@
     const template = document.getElementById('template')
 
     function handleRollDice(){
-        
+        socket.emit('an-user-wants-to-roll-dice')
+    }
+
+    function clearTemplate(){
+        while(template.firstChild){
+            template.removeChild(template.firstChild)
+        }
     }
 </script>
 
 
 <!--  tcp socket configuration  -->
 <script>
-    const socket = io()
     const userView = `<button onclick="handleRollDice()">Lancia dado</button>`
-    const falconeView = `<img src="./assets/1.png">`
+    const falconeView = `<img id="dice-image" src="./assets/1.png">`
 
     socket.on('falcone-loading', ()=>{
-        console.log("ciao falcon")
+        clearTemplate()
+        template.insertAdjacentHTML('beforeend', falconeView)
     })
 
     socket.on('user-loading', ()=>{
+        clearTemplate()
         template.insertAdjacentHTML('beforeend', userView)
     })
+
+    socket.on('dice-has-been-rolled', (d) => {
+        const {num} = d
+
+        document.getElementById('dice-image').setAttribute('src', `./assets/${num}.png`)
+    })
+
+    socket.on('dice-rolling-animation', () => {
+        const diceImage = document.getElementById('dice-image')
+        
+        const ivl1 = setInterval(() => {
+            diceImage.style.transition = 'transform 0.1s ease-in-out'
+            diceImage.style.transform = `rotate(${Math.random() * 360}deg) scale(1.1)`
+        }, 100)
+
+        const ivl2 = setInterval(() => {
+            const srcn = Math.floor(Math.random() * 6) + 1
+            const src = `./assets/${srcn}.png`
+            diceImage.setAttribute('src', src)
+        }, 50)
+
+        setTimeout(() => {
+            clearInterval(ivl1)
+            clearInterval(ivl2)
+
+            diceImage.style.transform = 'rotate(0deg) scale(1)'
+            socket.emit('dice-rolling-animation-is-finished')
+        }, 4980)
+    })
+
+    socket.on('falcone-is-offline',()=>{
+        alert("Al momento Falcone è offline")
+    })
+
 </script>
 
 </html>
